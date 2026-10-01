@@ -1,3 +1,15 @@
 @OrdersApi_HostAddress = http://localhost:5264
 
+### All orders
+GET {{OrdersApi_HostAddress}}/api/orders
+Accept: application/json
+
+### Orders for a customer (case-insensitive)
+GET {{OrdersApi_HostAddress}}/api/orders/customer/Nino
+Accept: application/json
+
+### Statistics for completed orders
+GET {{OrdersApi_HostAddress}}/api/orders/statistics
+Accept: application/json
+
 ###

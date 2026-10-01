@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-Take-home assignment: a small program that processes an `orders.json` file. Right now the repo is a stripped ASP.NET Core Web API template: the WeatherForecast sample is gone, `Data/orders.json` holds the input data (copied to the output folder), and `Controllers/`, `Enums/`, `Models/` and `Services/` exist but are empty. None of the order logic exists yet. It is not a git repository yet.
+Take-home assignment: a small program that processes an `orders.json` file. Right now the repo is a stripped ASP.NET Core Web API template: the WeatherForecast sample is gone, `Data/orders.json` holds the input data (copied to the output folder). The enum, the models, the data loader and `OrderService` (`Services/`, implementing `Services/Interfaces/IOrderService`, registered as scoped) exist, along with `OrdersController`, which serves `GET /api/orders`, `/api/orders/customer/{name}` and `/api/orders/statistics`. Enums are returned as strings through `AddJsonOptions`. `OrdersApi.Tests` is an xUnit v2 project (net10.0) that references `OrdersApi`; `OrderServiceTests` holds 15 unit tests that feed `OrderService` in-memory orders through a private `FakeOrderSource`, so they don't depend on the JSON file.
+
+Loading works like this: `JsonOrderSource` (in `Data/`, implementing `Data/Interfaces/IOrderSource`) reads the path from the `OrdersFilePath` setting in `appsettings.json`, resolved against `AppContext.BaseDirectory`. It deserializes the file once, caches it, and is registered as a singleton. `Program.cs` loads it at startup, so a missing or invalid file stops the app immediately. Status parsing is case-insensitive, and an unknown status value fails the load. It is not a git repository yet.
 
 ### Requirements (from the assignment)
 
@@ -29,14 +31,15 @@ Use these as the test oracle. They were computed by hand.
 - Match customer names case-insensitively and trim whitespace. An unknown customer returns `200` with an empty list.
 - Parse status case-insensitively. Unknown statuses appear in "all orders" but not in the statistics.
 - If there are no completed orders, return zeros and an empty product list (no divide-by-zero).
-- Use `decimal` for money. Round the average to 2 decimals (`MidpointRounding.AwayFromZero`) only when presenting it.
+- Use `decimal` for money. Round the average to 2 decimals with `MidpointRounding.AwayFromZero` (x.xx5 always rounds up).
 - "Popular" means by quantity, not by revenue.
 
 ## Target structure (planned, not yet created)
 
 Keep the scope small: no database, EF Core, auth, MediatR, or repository layers.
 
-- `OrdersApi` (this Web API project): a thin controller plus composition in `Program.cs`. Endpoints: `GET /api/orders`, `GET /api/orders?customer={name}`, `GET /api/orders/statistics`. The path to the orders file comes from `appsettings.json`.
+- `OrdersApi` (this Web API project): a thin controller plus composition in `Program.cs`. Endpoints: `GET /api/orders`, `GET /api/orders/customer/{name}`, `GET /api/orders/statistics`. The path to the orders file comes from `appsettings.json`.
+- Models (`Models/`) are plain classes with `{ get; set; }` properties, shaped like the JSON, with no computed properties or logic. Every calculation, including a single order's total, lives in `Services/`.
 - An `OrdersApi.Core`-style class library, or a `Services/` folder if staying single-project: models, a JSON loader, and a pure `OrderService` that takes the orders and returns results with no HTTP or file I/O, so it can be unit tested directly.
 - An xUnit test project: unit tests on `OrderService` using in-memory data that mirrors `orders.json`, plus an optional integration test through `WebApplicationFactory<Program>` (this needs `public partial class Program {}` in `Program.cs`).
 
